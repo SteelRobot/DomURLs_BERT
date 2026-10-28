@@ -68,11 +68,11 @@ def main(args):
                     "drop_last":False}
 
     model_params = {
-        'vocab_size' : 96,
+        'vocab_size': args.vocab_size,
         'output_size': num_classes,
-        'embedding_dim' : 128,
-        'hidden_dim': 128,
-        'n_layers': 3
+        'embedding_dim': args.embedding_dim,
+        'hidden_dim': args.hidden_dim,
+        'n_layers': args.n_layers,
     }
 
     experiment_params = {
@@ -108,7 +108,8 @@ def main(args):
     "mlflow.note.content":f"Deep learning for malicious {args.experiment_type.upper()} detection and classification using {args.model_name} model",
     })
 
-    mlflow.set_tracking_uri(Path.cwd().joinpath("mlruns/experiments").as_uri())
+    #mlflow.set_tracking_uri(Path.cwd().joinpath("mlruns/experiments").as_uri())
+    mlflow.set_tracking_uri("sqlite:///mlruns.db")
     exp_name = f'{args.dataset}_binary_cls_{num_classes==2}_{args.experiment_type}'
     print('experiment', exp_name)
     exp_id = mlflow.set_experiment(exp_name)
@@ -129,8 +130,7 @@ def main(args):
 
     ckpts_path = './mlruns/ckpts'
     checkpoint_path = f"{ckpts_path}/{run_id}/"
-    checkpoint_callback = ModelCheckpoint(dirpath=checkpoint_path, monitor='val_loss',  
-                                            filename=f'best_checkpoint')
+    checkpoint_callback = ModelCheckpoint(dirpath=checkpoint_path, monitor='val_loss', filename=f'best_checkpoint')
     early_stopping = EarlyStopping(monitor="val_loss", min_delta=0.001, patience=5)
 
     # Instanciate the model, loss, and the Lightning module
@@ -142,8 +142,7 @@ def main(args):
     lit_model = BaseModel(classifier=classifier, num_classes=num_classes, criterion=criterion, config=config, names = label_encoder.classes_)
 
     # Instanciate model trainer
-    trainer = Trainer(max_epochs=args.epochs, devices=[args.device], accelerator="gpu", logger=mlf_logger, callbacks=[checkpoint_callback, early_stopping],  benchmark=False,
-                  deterministic=True, precision="16", gradient_clip_val=1)
+    trainer = Trainer(max_epochs=args.epochs, devices=[int(args.device)], accelerator="gpu", logger=mlf_logger, callbacks=[checkpoint_callback, early_stopping], benchmark=False, deterministic=True, precision="32", gradient_clip_val=1)
     # Model training
     trainer.fit(lit_model, train_dataloaders=train_loader, val_dataloaders=dev_loader)
     # Evaluate the model on the dev set
@@ -152,10 +151,16 @@ def main(args):
     test_results = trainer.test(ckpt_path='best', dataloaders=test_loader)
 
     # Logging experiment metadata artifact
+    metadata = {
+        **experiment_params,
+        "model_name": args.model_name,
+        "model_params": model_params,
+        "label_encoder": label_encoder,
+    }
+
     path_metadata = f"{checkpoint_path}/model_metadata.p" 
-    experiment_params['label_encoder'] = label_encoder
     with open(path_metadata, 'wb') as f:
-        pickle.dump(experiment_params, f)
+        pickle.dump(metadata, f)
     mlflow.log_artifact(path_metadata, artifact_path=f"model_metadata.p")
 
     # Logging classification report artifact
@@ -172,6 +177,10 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='Mendeley_AK_Singh_2020_phish', help='Dataset name')
     parser.add_argument('--model_name', type=str, default='CharCNN', choices=['CharCNN', "CharLSTM", "CharGRU", "CharBiLSTM", 
                                                                               "CharBiGRU", "CharCNNBiLSTM"], help='Model')
+    parser.add_argument("--vocab_size", type=int, default=96)
+    parser.add_argument("--embedding_dim", type=int, default=128)
+    parser.add_argument("--hidden_dim", type=int, default=128)
+    parser.add_argument("--n_layers", type=int, default=3)
     parser.add_argument('--num_workers', type=int, default=1, help='Number of workers for data loading')
     parser.add_argument('--dropout_prob', type=float, default=0.2, help='Dropout probability')
     parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate')

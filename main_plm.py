@@ -89,7 +89,8 @@ def main(args):
     "mlflow.note.content":f"Deep learning for malicious {args.experiment_type.upper()} detection and classification using {args.pretrained_path} model",
     })
 
-    mlflow.set_tracking_uri(Path.cwd().joinpath("mlruns/experiments").as_uri())
+    # mlflow.set_tracking_uri(Path.cwd().joinpath("mlruns/experiments").as_uri())
+    mlflow.set_tracking_uri("sqlite:///mlruns.db")
     exp_name = f'{args.dataset}_binary_cls_{num_classes==2}_{args.experiment_type}'
     print('experiment', exp_name)
     exp_id = mlflow.set_experiment(exp_name)
@@ -129,7 +130,7 @@ def main(args):
 
     # Instanciate model trainer
     trainer = Trainer(max_epochs=args.epochs, devices=[args.device], accelerator="gpu", logger=mlf_logger, callbacks=[checkpoint_callback, early_stopping],  benchmark=False,
-                  deterministic=True, precision="16", gradient_clip_val=1)
+                  deterministic=True, precision="32", gradient_clip_val=1)
     # Model training
     trainer.fit(lit_model, train_dataloaders=train_loader, val_dataloaders=dev_loader)
     # Evaluate the model on the dev set
@@ -138,10 +139,17 @@ def main(args):
     test_results = trainer.test(ckpt_path='best', dataloaders=test_loader)
 
     # Logging experiment metadata artifact
+    metadata = {
+        **experiment_params,
+        "model_name": args.model_name,
+        "model_params": model_params,
+        "label_encoder": label_encoder,
+    }
+
     path_metadata = f"{checkpoint_path}/model_metadata.p" 
-    experiment_params['label_encoder'] = label_encoder
     with open(path_metadata, 'wb') as f:
-        pickle.dump(experiment_params, f)
+        pickle.dump(metadata, f)
+
     mlflow.log_artifact(path_metadata, artifact_path=f"model_metadata.p")
 
     # Logging classification report artifact

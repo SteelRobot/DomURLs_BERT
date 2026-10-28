@@ -1,0 +1,17 @@
+/home/steel/Scripts/myenv/bin/python main_charnn.py			\
+                                 --dataset Mendeley_AK_Singh_2020_phish	\
+                                 --model_name CharCNN			\
+                                 --vocab_size 128			\
+                                 --embedding_dim 256			\
+                                 --hidden_dim 768			\
+                                 --n_layers 12				\
+                                 --num_workers 8			\
+                                 --dropout_prob 0.2			\
+                                 --lr 0.001				\
+                                 --weight_decay 0.001			\
+                                 --epochs 20				\
+                                 --batch_size 128			\
+                                 --experiment_type url			\
+                                 --label_column label			\
+                                 --seed 1234				\
+                                 --device 0

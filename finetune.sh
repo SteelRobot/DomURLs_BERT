@@ -1,0 +1,13 @@
+/home/steel/Scripts/myenv/bin/python main_plm.py			\
+			     --dataset Mendeley_AK_Singh_2020_phish	\
+			     --pretrained_path amahdaouy/DomURLs_BERT	\
+			     --num_workers 8				\
+			     --dropout_prob 0.2				\
+			     --lr 1e-5					\
+			     --weight_decay 1e-3			\
+			     --epochs 1				\
+			     --batch_size 32				\
+			     --experiment_type url			\
+			     --label_column label			\
+			     --seed 3407				\
+			     --device 0
